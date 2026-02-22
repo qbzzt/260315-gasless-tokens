@@ -3,12 +3,13 @@ pragma solidity ^0.8.21;
 
 contract Proxy {
     address immutable OWNER;
+    uint nonce = 0;
 
     bytes32 private constant SIGNED_ACCESS_TYPEHASH =
-        keccak256("signedAccess(address,bytes)");
+        keccak256("signedAccess(address,bytes,uint256)");
 
     bytes32 private constant SIGNED_ACCESS_PAYABLE_TYPEHASH =
-        keccak256("signedAccessPayable(address,bytes,uint256)");
+        keccak256("signedAccessPayable(address,bytes,uint256,uint256)");
 
     bytes32 immutable DOMAIN_SEPARATOR;      
 
@@ -55,7 +56,7 @@ contract Proxy {
     
     function signedAccess(
         address target, 
-        bytes calldata data, 
+        bytes calldata data,
         uint8 v, 
         bytes32 r, 
         bytes32 s) 
@@ -69,7 +70,8 @@ contract Proxy {
                     abi.encode(
                         SIGNED_ACCESS_TYPEHASH,
                         target,
-                        keccak256(data)
+                        keccak256(data),
+                        nonce
                     )
                 )
             )
@@ -83,6 +85,8 @@ contract Proxy {
         require(success, "Call failed");
 
         emit CallResult(target, returnData);
+
+        nonce++; // Increment nonce to prevent replay
 
         return returnData;
     }
@@ -108,7 +112,8 @@ contract Proxy {
                         SIGNED_ACCESS_PAYABLE_TYPEHASH,
                         target,
                         keccak256(data),
-                        value
+                        value,
+                        nonce
                     )
                 )
             )
@@ -122,6 +127,8 @@ contract Proxy {
         require(success, "Call failed");
 
         emit CallResult(target, returnData);
+
+        nonce++; // Increment nonce to prevent replay
 
         return returnData;
     }

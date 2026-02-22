@@ -13,6 +13,7 @@ contract ProxySignedAccessOwnerTest is Test {
     address owner;
 
     bytes32 private DOMAIN_SEPARATOR;
+    bytes32 constant TYPEHASH = keccak256("signedAccess(address,bytes,uint256)");
 
     function setUp() public {
         // OWNER is the signer now
@@ -49,14 +50,12 @@ contract ProxySignedAccessOwnerTest is Test {
         // ---------------------------------------
         // 2. Recompute Proxy’s EIP‑712 digest
         // ---------------------------------------
-        bytes32 TYPEHASH =
-            keccak256("signedAccess(address,bytes)");
-
         bytes32 structHash = keccak256(
             abi.encode(
                 TYPEHASH,
                 address(greeter),
-                keccak256(callData)
+                keccak256(callData),
+                0 // nonce
             )
         );
 
@@ -111,14 +110,12 @@ contract ProxySignedAccessOwnerTest is Test {
         // ---------------------------------------
         // 2. Recompute Proxy’s EIP‑712 digest
         // ---------------------------------------
-        bytes32 TYPEHASH =
-            keccak256("signedAccess(address,bytes)");
-
         bytes32 structHash = keccak256(
             abi.encode(
                 TYPEHASH,
                 address(greeter),
-                keccak256(callData)
+                keccak256(callData),
+                0 // nonce
             )
         );
 
@@ -146,4 +143,149 @@ contract ProxySignedAccessOwnerTest is Test {
         // ---------------------------------------
         assertEq(greeter.greet(), oldGreeting);
     }    
-}
+
+    function testSignedAccessOwnerSignatureTwice() public {
+        // ---------------------------------------
+        // 1. Prepare calldata for Greeter.setGreeting
+        // ---------------------------------------
+        string memory greeting1 = "gm owner";
+        string memory greeting2 = "good morning owner";        
+
+        bytes memory callData = abi.encodeWithSelector(
+            Greeter.setGreeting.selector,
+            greeting1
+        );
+
+        // ---------------------------------------
+        // 2. Recompute Proxy’s EIP‑712 digest
+        // ---------------------------------------
+        bytes32 structHash = keccak256(
+            abi.encode(
+                TYPEHASH,
+                address(greeter),
+                keccak256(callData),
+                0 // nonce
+            )
+        );
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+
+        // ---------------------------------------
+        // 3. Sign digest with OWNER key
+        // ---------------------------------------
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
+
+        // ---------------------------------------
+        // 4. Call signedAccess on Proxy
+        // ---------------------------------------
+        proxy.signedAccess(address(greeter), callData, v, r, s);
+
+        // ---------------------------------------
+        // 5. Verify state change
+        // ---------------------------------------
+        assertEq(greeter.greet(), greeting1);
+
+        // ---------------------------------------
+        // 6. Prepare calldata for second call
+        // ---------------------------------------
+        callData = abi.encodeWithSelector(
+            Greeter.setGreeting.selector,
+            greeting2
+        );
+
+        // ---------------------------------------
+        // 7. Recompute Proxy’s EIP‑712 digest
+        // ---------------------------------------
+
+        structHash = keccak256(
+            abi.encode(
+                TYPEHASH,
+                address(greeter),
+                keccak256(callData),
+                1 // nonce
+            )
+        );
+
+        digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+
+        // ---------------------------------------
+        // 8. Sign digest with OWNER key
+        // ---------------------------------------
+        (uint8 v2, bytes32 r2, bytes32 s2) = vm.sign(ownerKey, digest);
+
+        // ---------------------------------------
+        // 9. Call signedAccess on Proxy
+        // ---------------------------------------
+        proxy.signedAccess(address(greeter), callData, v2, r2, s2);
+
+        // ---------------------------------------
+        // 10. Verify state change
+        // ---------------------------------------
+        assertEq(greeter.greet(), greeting2);        
+    }
+
+    function testReplayAttack() public {
+        // ---------------------------------------
+        // 1. Prepare calldata for Greeter.setGreeting
+        // ---------------------------------------
+        string memory greeting1 = "gm owner";
+
+        bytes memory callData = abi.encodeWithSelector(
+            Greeter.setGreeting.selector,
+            greeting1
+        );
+
+        // ---------------------------------------
+        // 2. Recompute Proxy’s EIP‑712 digest
+        // ---------------------------------------
+        bytes32 structHash = keccak256(
+            abi.encode(
+                TYPEHASH,
+                address(greeter),
+                keccak256(callData),
+                0 // nonce
+            )
+        );
+
+        bytes32 digest = keccak256(
+            abi.encodePacked(
+                "\x19\x01",
+                DOMAIN_SEPARATOR,
+                structHash
+            )
+        );
+
+        // ---------------------------------------
+        // 3. Sign digest with OWNER key
+        // ---------------------------------------
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
+
+        // ---------------------------------------
+        // 4. Call signedAccess on Proxy
+        // ---------------------------------------
+        proxy.signedAccess(address(greeter), callData, v, r, s);
+
+        // ---------------------------------------
+        // 5. Verify state change
+        // ---------------------------------------
+        assertEq(greeter.greet(), greeting1);
+
+        // ---------------------------------------
+        // 6. Attempt replay with same signature
+        // ---------------------------------------
+        vm.expectRevert("Signature invalid or not by owner");
+        proxy.signedAccess(address(greeter), callData, v, r, s);
+    }
+}    
