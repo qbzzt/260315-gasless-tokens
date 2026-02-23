@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-import "forge-std/Test.sol";
-import "../src/Proxy.sol";
-import "../src/Greeter.sol";
+import { Test } from "forge-std/Test.sol";
+import { UserProxy } from "../src/UserProxy.sol";
+import { Greeter } from "../src/Greeter.sol";
 
-contract ProxySignedAccessOwnerTest is Test {
-    Proxy proxy;
+contract UserProxySignedAccessOwnerTest is Test {
+    UserProxy userProxy;
     Greeter greeter;
 
     uint256 ownerKey;
@@ -16,11 +16,10 @@ contract ProxySignedAccessOwnerTest is Test {
     bytes32 constant TYPEHASH = keccak256("signedAccess(address,bytes,uint256)");
 
     function setUp() public {
-        // OWNER is the signer now
         ownerKey = 0xA11CE;
         owner = vm.addr(ownerKey);
 
-        proxy = new Proxy(owner);
+        userProxy = new UserProxy(owner);
         greeter = new Greeter("hello");
 
         DOMAIN_SEPARATOR = keccak256(
@@ -28,10 +27,10 @@ contract ProxySignedAccessOwnerTest is Test {
                 keccak256(
                     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                 ),
-                keccak256(bytes("Proxy")),
+                keccak256(bytes("UserProxy")),
                 keccak256(bytes("1")),
                 block.chainid,
-                address(proxy)
+                address(userProxy)
             )
         );        
     }
@@ -77,17 +76,17 @@ contract ProxySignedAccessOwnerTest is Test {
         // ---------------------------------------
         // Expect Greeter.SetGreeting (first event)
         vm.expectEmit(true, true, false, true, address(greeter));
-        emit Greeter.SetGreeting(address(proxy), newGreeting);
+        emit Greeter.SetGreeting(address(userProxy), newGreeting);
 
-        // Expect Proxy.CallResult (second event)
-        vm.expectEmit(false, false, false, false, address(proxy));
-        emit Proxy.CallResult(address(greeter), bytes(""));
+        // Expect UserProxy.CallResult (second event)
+        vm.expectEmit(false, false, false, false, address(userProxy));
+        emit UserProxy.CallResult(address(greeter), bytes(""));
 
 
         // ---------------------------------------
-        // 5. Call signedAccess on Proxy
+        // 5. Call signedAccess on UserProxy
         // ---------------------------------------
-        proxy.signedAccess(address(greeter), callData, v, r, s);
+        userProxy.signedAccess(address(greeter), callData, v, r, s);
 
         // ---------------------------------------
         // 6. Verify state change
@@ -108,7 +107,7 @@ contract ProxySignedAccessOwnerTest is Test {
         );
 
         // ---------------------------------------
-        // 2. Recompute Proxy’s EIP‑712 digest
+        // 2. Recompute UserProxy’s EIP‑712 digest
         // ---------------------------------------
         bytes32 structHash = keccak256(
             abi.encode(
@@ -133,10 +132,10 @@ contract ProxySignedAccessOwnerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(0xbad060a7, digest);
 
         // ---------------------------------------
-        // 4. Call signedAccess on Proxy
+        // 4. Call signedAccess on UserProxy
         // ---------------------------------------
         vm.expectRevert("Signature invalid or not by owner");
-        proxy.signedAccess(address(greeter), callData, v, r, s);
+        userProxy.signedAccess(address(greeter), callData, v, r, s);
 
         // ---------------------------------------
         // 5. Verify state did not change
@@ -157,7 +156,7 @@ contract ProxySignedAccessOwnerTest is Test {
         );
 
         // ---------------------------------------
-        // 2. Recompute Proxy’s EIP‑712 digest
+        // 2. Compute UserProxy’s EIP‑712 digest
         // ---------------------------------------
         bytes32 structHash = keccak256(
             abi.encode(
@@ -182,10 +181,10 @@ contract ProxySignedAccessOwnerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
 
         // ---------------------------------------
-        // 4. Call signedAccess on Proxy
+        // 4. Call signedAccess on UserProxy
         // ---------------------------------------
-        proxy.signedAccess(address(greeter), callData, v, r, s);
-
+        userProxy.signedAccess(address(greeter), callData, v, r, s);
+    
         // ---------------------------------------
         // 5. Verify state change
         // ---------------------------------------
@@ -228,7 +227,7 @@ contract ProxySignedAccessOwnerTest is Test {
         // ---------------------------------------
         // 9. Call signedAccess on Proxy
         // ---------------------------------------
-        proxy.signedAccess(address(greeter), callData, v2, r2, s2);
+        userProxy.signedAccess(address(greeter), callData, v2, r2, s2);
 
         // ---------------------------------------
         // 10. Verify state change
@@ -273,9 +272,9 @@ contract ProxySignedAccessOwnerTest is Test {
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(ownerKey, digest);
 
         // ---------------------------------------
-        // 4. Call signedAccess on Proxy
+        // 4. Call signedAccess on UserProxy
         // ---------------------------------------
-        proxy.signedAccess(address(greeter), callData, v, r, s);
+        userProxy.signedAccess(address(greeter), callData, v, r, s);
 
         // ---------------------------------------
         // 5. Verify state change
@@ -286,6 +285,6 @@ contract ProxySignedAccessOwnerTest is Test {
         // 6. Attempt replay with same signature
         // ---------------------------------------
         vm.expectRevert("Signature invalid or not by owner");
-        proxy.signedAccess(address(greeter), callData, v, r, s);
+        userProxy.signedAccess(address(greeter), callData, v, r, s);
     }
 }    

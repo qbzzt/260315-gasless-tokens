@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.21;
 
-contract Proxy {
+contract UserProxy {
     address immutable OWNER;
     uint nonce = 0;
 
@@ -21,7 +21,7 @@ contract Proxy {
                 keccak256(
                     "EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)"
                 ),
-                keccak256(bytes("Proxy")),
+                keccak256(bytes("UserProxy")),
                 keccak256(bytes("1")),
                 block.chainid,
                 address(this)
@@ -133,52 +133,3 @@ contract Proxy {
         return returnData;
     }
 }
-
-
-/*
-
- Using with Anvil
-
-PRIVATE_KEY=0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
-PRIVATE_KEY_2=0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d
-ADDRESS=0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266
-GREETER=`forge create Greeter --broadcast --private-key $PRIVATE_KEY --constructor-args Hello | awk '/Deployed to:/ {print $3}'`
-PROXY=`forge create Proxy --broadcast --private-key $PRIVATE_KEY --constructor-args $ADDRESS | awk '/Deployed to:/ {print $3}'`
-CALLDATA=`cast calldata "setGreeting(string)" Hi`
-cast send $PROXY --private-key $PRIVATE_KEY "directAccess(address,bytes)" $GREETER $CALLDATA
-
-# This should return "Hi"
-cast call $GREETER "greet()" | cast to-ascii
-
-# This should fail
-cast send $PROXY --private-key $PRIVATE_KEY_2 "directAccess(address,bytes)" $GREETER $CALLDATA
-
-
-cast wallet sign --data '{
-    "types": {
-      "EIP712Domain": [
-        {"name": "name", "type": "string"},
-        {"name": "version", "type": "string"},
-        {"name": "chainId", "type": "uint256"},
-        {"name": "verifyingContract", "type": "address"}
-      ],
-      "signedAccess": [
-        {"name": "target", "type": "address"},
-        {"name": "data", "type": "bytes"}
-      ]
-    },
-    "primaryType": "signedAccess",
-    "domain": {
-      "name": "Proxy",
-      "version": "1",
-      "chainId": 1,
-      "verifyingContract": "$PROXY"
-    },
-    "message": {
-      "target": "$GREETER",
-      "data": `CALLDATA=`cast calldata "setGreeting(string)" Bye`
-    }
-  }' --private-key $PRIVATE_KEY
-
-
-*/
