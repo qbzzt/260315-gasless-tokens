@@ -1,0 +1,10 @@
+[profile.default]
+src = "contracts/src"
+test = "contracts/test"
+libs = ["lib"]
+
+# Put all build artifacts under contracts/
+out = "contracts/out"
+cache_path = "contracts/cache"
+broadcast = "contracts/broadcast"
+

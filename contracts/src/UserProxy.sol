@@ -3,13 +3,13 @@ pragma solidity ^0.8.21;
 
 contract UserProxy {
     address immutable OWNER;
-    uint nonce = 0;
+    uint public nonce = 0;
 
     bytes32 private constant SIGNED_ACCESS_TYPEHASH =
-        keccak256("signedAccess(address,bytes,uint256)");
+        keccak256("SignedAccess(address target,bytes data,uint256 nonce)");
 
     bytes32 private constant SIGNED_ACCESS_PAYABLE_TYPEHASH =
-        keccak256("signedAccessPayable(address,bytes,uint256,uint256)");
+        keccak256("SignedAccessPayable(address target,bytes data,uint256 nonce,uint256 value)");
 
     bytes32 immutable DOMAIN_SEPARATOR;      
 

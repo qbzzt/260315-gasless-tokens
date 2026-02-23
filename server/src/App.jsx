@@ -2,7 +2,7 @@ import './App.css'
 
 import { useEffect } from 'react'
 import { useAccount, useConnect, useDisconnect } from 'wagmi'
-import { Faucet } from './Faucet'
+import { Token } from './Token'
 
 function WalletButton() {
   const { address, chainId, isConnected } = useAccount()
@@ -44,7 +44,7 @@ function App() {
   return (
     <>
       <WalletButton />
-      <Faucet />
+      <Token />
     </>
   )
 }

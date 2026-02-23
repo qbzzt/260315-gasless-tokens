@@ -3,13 +3,14 @@ import { createServer as createViteServer } from "vite";
 import { createWalletClient, createPublicClient, http } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
 import { sepolia } from 'viem/chains'
-import 'dotenv/config'
+import dotenv from 'dotenv'
 import { createRequire } from 'module'
 const require = createRequire(import.meta.url)
-
 const UserProxy = require('../contracts/out/UserProxy.sol/UserProxy.json')
 
-const sepoliaAccount = privateKeyToAccount(process.env.PRIVATE_KEY)
+dotenv.config()
+const sepoliaAccount = privateKeyToAccount(process.env.SEPOLIA_PRIVATE_KEY)
+console.log("Using account:", sepoliaAccount.address)
 
 const sepoliaClient = createWalletClient({
   account: sepoliaAccount,
@@ -45,6 +46,30 @@ const start = async () => {
       })
 
       res.json({ contractAddress: receipt.contractAddress })
+    } catch (err) {
+      console.error(err)
+      res.status(500).json({ error: err.message })
+    }
+  })
+
+  app.post("/server/message", async (req, res) => {
+    try {
+      const { proxy, target, data, v, r, s } = req.body
+
+      console.log(req.body)
+
+      const txHash = await sepoliaClient.writeContract({
+        address: proxy,
+        abi: UserProxy.abi,
+        functionName: 'signedAccess',
+        args: [target, data, v, r, s],
+        account: sepoliaAccount,
+      })
+
+      console.log("Message transaction hash:", txHash)
+
+      res.json({ txHash })
+
     } catch (err) {
       console.error(err)
       res.status(500).json({ error: err.message })
