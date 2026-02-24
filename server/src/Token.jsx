@@ -43,6 +43,7 @@ const Token = () => {
   const [ newProxyAddr, setNewProxyAddr ] = useState("")
   const [ txHash, setTxHash ] = useState(null)
 
+  const [ transferToken, setTransferToken ] = useState("")
   const [ transferAmount, setTransferAmount ] = useState("")
   const [ transferTo, setTransferTo ] = useState("")
 
@@ -88,8 +89,18 @@ const Token = () => {
       setProxyBalanceAmount("Loading...")  
   }, [proxyBalance])
 
-  const proxyAddressChange = (evt) =>
-    setNewProxyAddr(evt.target.value)
+  useEffect(() => {
+    setTransferToken(faucetAddr)
+  }, [faucetAddr])
+
+  useEffect(() => {
+    setTransferTo(account.address)
+  }, [account.address])
+
+  const proxyAddressChange = (evt) => setNewProxyAddr(evt.target.value)
+  const transferTokenChange = (evt) => setTransferToken(evt.target.value)  
+  const transferToChange = (evt) => setTransferTo(evt.target.value)  
+  const transferAmountChange = (evt) => setTransferAmount(evt.target.value)  
 
   const deployUserProxy = async () => {
     try {
@@ -175,6 +186,17 @@ const Token = () => {
     messageUserProxy(proxyAddr, faucetAddr, calldata, v, r, s)
   }
 
+  const proxyTransfer = async () => {
+    const calldata = encodeFunctionData({
+      abi: Erc20.abi,
+      functionName: 'transfer',
+      args: [transferTo, BigInt(transferAmount) * 10n**18n],
+    })
+
+    const {v, r, s} = await signMessage(proxyAddr, calldata)
+    messageUserProxy(proxyAddr, faucetAddr, calldata, v, r, s)
+  }  
+
   return (
     <>
       <div align="left">
@@ -203,7 +225,7 @@ const Token = () => {
             onClick={() => setProxyAddr(newProxyAddr)}
             disabled={newProxyAddr.match(/^0x[a-fA-F0-9]{40}$/) === null}
          >
-         Set proxy address
+            Set proxy address
          </button>
          <br /><br />
          { proxyAddr && (
@@ -212,11 +234,23 @@ const Token = () => {
                <br />
                Proxy nonce: {nonce?.data?.toString() ?? "Loading..."}
                <br />
-               <button disabled={!proxyAddr || proxyAddr === "Loading..." || !(nonce?.data)} 
+               <button disabled={!proxyAddr || proxyAddr === "Loading..." || nonce?.status !== 'success'} 
                   onClick={proxyFaucet}
                >
                   Request more tokens for proxy
                </button>
+               <hr />
+               <h4>Transfer tokens from proxy</h4>
+               <ul>
+                  <li> Token to transfer: <input type="text" placeholder="Token to transfer" value={transferToken} onChange={transferTokenChange} /> </li>
+                  <li> Recipient address: <input type="text" placeholder="Recipient address" value={transferTo} onChange={transferToChange} /> </li>
+                  <li> Amount to transfer: <input type="number" placeholder="Amount to transfer" value={transferAmount} onChange={transferAmountChange} /> </li>
+               </ul>
+               <button disabled={!proxyAddr || proxyAddr === "Loading..." || nonce?.status !== 'success'} 
+                  onClick={proxyTransfer}
+               >
+                  Transfer
+               </button>               
             </>
          )}   
          <hr />
